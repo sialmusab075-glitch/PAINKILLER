@@ -1,0 +1,70 @@
+// SQLite for now. To move to Postgres: change `provider`, DATABASE_URL, and the
+// driver adapter in lib/db.ts. Enum-like fields are plain strings validated with
+// zod so the schema stays portable across providers.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  name               String?
+  createdAt          DateTime   @default(now())
+  /// Subscription state mirrored from Stripe (source of truth) by lib/billing/service.ts.
+  stripeCustomerId   String?    @unique
+  subscriptionId     String?
+  /// Stripe subscription status: "active" | "trialing" | "past_due" | "canceled" | ...
+  subscriptionStatus String?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean    @default(false)
+  resumes            Resume[]
+  analyses           Analysis[]
+}
+
+model MagicLinkToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  email     String
+  /// Name captured at sign-up; applied to the User when the link is consumed.
+  name      String?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email, createdAt])
+}
+
+model Resume {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filename  String?
+  text      String
+  createdAt DateTime   @default(now())
+  analyses  Analysis[]
+
+  @@index([userId])
+}
+
+model Analysis {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeId  String
+  resume    Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  /// "pending" | "completed" | "failed"
+  status    String    @default("pending")
+  score     Int?
+  result    Json?
+  error     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId, createdAt])
+}

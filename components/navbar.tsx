@@ -1,6 +1,10 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
 import { logoutAction } from "@/app/actions/auth";
+import { BillingButton } from "@/components/billing-button";
+import { getCurrentUser } from "@/lib/auth/session";
+
+const pillLink =
+  "rounded-full border border-line px-4 py-2 text-muted transition hover:border-ink hover:text-ink";
 
 export async function Navbar() {
   const user = await getCurrentUser();
@@ -13,16 +17,24 @@ export async function Navbar() {
         </Link>
 
         <nav className="flex items-center gap-3 text-sm">
-          <Link
-            href="/results"
-            className="rounded-full border border-line px-4 py-2 text-muted transition hover:border-ink hover:text-ink"
-          >
-            Results
-          </Link>
+          {user?.subscribed ? (
+            <>
+              <Link href="/results" className={pillLink}>
+                Results
+              </Link>
+              <BillingButton endpoint="/api/payment/portal" className={pillLink}>
+                Billing
+              </BillingButton>
+            </>
+          ) : user ? (
+            <Link href="/pricing" className={pillLink}>
+              Subscribe
+            </Link>
+          ) : null}
 
           {user ? (
             <div className="flex items-center gap-3">
-              <span className="hidden text-muted sm:inline">{user.email}</span>
+              <span className="hidden text-muted sm:inline">{user.name ?? user.email}</span>
               <form action={logoutAction}>
                 <button
                   type="submit"
